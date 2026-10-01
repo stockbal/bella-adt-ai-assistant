@@ -148,6 +148,10 @@ public final class AdtToolProvider implements ToolProvider {
 		activateSchema.getAsJsonObject("properties").add("objects", objects);
 		t.add(ToolSpec.of("adt_activate", "Activate one or more objects in the SAP system.", activateSchema,
 				Capability.ACTIVATE, ToolSpec.Kind.WRITE));
+		t.add(ToolSpec.of("adt_unlock_object",
+				"Release a lock an object was left with, e.g. after adt_write_source failed partway through. Use when the "
+						+ "developer reports an object stuck locked.",
+				schema(new String[] { "name" }, objectProps()), Capability.WRITE_SOURCE, ToolSpec.Kind.WRITE));
 		return t;
 	}
 
@@ -168,6 +172,7 @@ public final class AdtToolProvider implements ToolProvider {
 			case "adt_write_source" -> writeSource(in, cancel);
 			case "adt_create_object" -> create(in, cancel);
 			case "adt_activate" -> activate(in, cancel);
+			case "adt_unlock_object" -> unlockObject(in, cancel);
 			default -> ToolResult.error("Unknown ADT tool " + name);
 			};
 		} catch (IOException e) {
@@ -348,6 +353,15 @@ public final class AdtToolProvider implements ToolProvider {
 					Json.str(in, "source"), Json.str(in, "transport"), cancel);
 			return ToolResult.ok("Saved " + ref.name() + " in " + s.label() + (tr.isEmpty() ? "" : " (transport " + tr + ")")
 					+ ". Not activated yet.");
+		}
+	}
+
+	private ToolResult unlockObject(JsonObject in, CancelToken cancel) throws IOException {
+		AdtSystem s = system(in);
+		AdtObjectRef ref = resolve(client(s), in, cancel);
+		try (AdtTransport.Session session = backend.stateful(s.destinationId())) {
+			AdtClient.unlock(session, AdtObjectRef.objectUri(ref.uri()), cancel);
+			return ToolResult.ok("Unlocked " + ref.name() + " in " + s.label() + ".");
 		}
 	}
 

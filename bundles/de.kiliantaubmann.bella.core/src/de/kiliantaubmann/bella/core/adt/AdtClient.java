@@ -196,6 +196,45 @@ public final class AdtClient {
 		return new Lock(h.group(1), c.find() ? c.group(1) : "", l.find() && "X".equals(l.group(1).trim()));
 	}
 
+	private static Lock lock(AdtTransport.Session session, String objectUri, CancelToken cancel) throws IOException {
+		AdtRequest lockReq = AdtRequest.post(objectUri + "?_action=LOCK&accessMode=MODIFY",
+				"application/*,application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result", null,
+				null);
+		AdtResponse lockResp = exchange(session, lockReq, cancel);
+		if (!lockResp.ok()) {
+			throw new AdtException(lockResp.status(), "Could not lock object: " + AdtErrors.message(lockResp));
+		}
+		return parseLock(lockResp.body());
+	}
+
+	private static void unlock(AdtTransport.Session session, String objectUri, Lock lock, CancelToken cancel)
+			throws IOException {
+		AdtResponse resp = exchange(session,
+				AdtRequest.post(objectUri + "?_action=UNLOCK&lockHandle=" + enc(lock.handle()), null, null, null), cancel);
+		if (!resp.ok()) {
+			throw new AdtException(resp.status(), "Could not unlock object: " + AdtErrors.message(resp));
+		}
+	}
+
+	/** Unlocks without raising, for use in a {@code finally} block, so it never hides the real error. */
+	private static void unlockQuietly(AdtTransport.Session session, String objectUri, Lock lock) {
+		try {
+			unlock(session, objectUri, lock, CancelToken.NONE);
+		} catch (IOException e) {
+			Log.warn(AREA, "Could not unlock " + objectUri + ", it may stay locked until released manually: " + e);
+		}
+	}
+
+	/**
+	 * Releases a stale lock on an object, e.g. after a write that failed between
+	 * lock and unlock. Re-acquires the lock (SAP returns the existing handle to
+	 * its owner) and releases it, so the original handle is not needed.
+	 */
+	public static void unlock(AdtTransport.Session session, String objectUri, CancelToken cancel) throws IOException {
+		Lock lock = lock(session, objectUri, cancel);
+		unlock(session, objectUri, lock, cancel);
+	}
+
 	/**
 	 * Writes source code to the SAP system: lock, PUT, unlock, all in one
 	 * stateful session. Does not activate.
@@ -205,14 +244,7 @@ public final class AdtClient {
 	 */
 	public static String writeSource(AdtTransport.Session session, String objectUri, String include, String source,
 			String transport, CancelToken cancel) throws IOException {
-		AdtRequest lockReq = AdtRequest.post(objectUri + "?_action=LOCK&accessMode=MODIFY",
-				"application/*,application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result", null,
-				null);
-		AdtResponse lockResp = exchange(session, lockReq, cancel);
-		if (!lockResp.ok()) {
-			throw new AdtException(lockResp.status(), "Could not lock object: " + AdtErrors.message(lockResp));
-		}
-		Lock lock = parseLock(lockResp.body());
+		Lock lock = lock(session, objectUri, cancel);
 		try {
 			String tr = transport != null && !transport.isBlank() ? transport : lock.transport();
 			if (!lock.local() && (tr == null || tr.isBlank())) {
@@ -224,15 +256,14 @@ public final class AdtClient {
 			if (tr != null && !tr.isBlank()) {
 				path.append("&corrNr=").append(enc(tr));
 			}
-			AdtResponse put = exchange(session, AdtRequest.put(path.toString(), source, "text/plain; charset=utf-8"),
-					cancel);
+			AdtResponse put = exchange(session,
+					AdtRequest.put(path.toString(), source, "text/plain; charset=utf-8", "text/plain"), cancel);
 			if (!put.ok()) {
 				throw new AdtException(put.status(), "Could not write source: " + AdtErrors.message(put));
 			}
 			return tr == null ? "" : tr;
 		} finally {
-			exchange(session, AdtRequest.post(objectUri + "?_action=UNLOCK&lockHandle=" + enc(lock.handle()), null, null,
-					null), CancelToken.NONE);
+			unlockQuietly(session, objectUri, lock);
 		}
 	}
 

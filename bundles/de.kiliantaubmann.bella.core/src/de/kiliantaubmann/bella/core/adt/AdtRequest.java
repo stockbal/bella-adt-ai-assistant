@@ -23,7 +23,11 @@ public record AdtRequest(String method, String path, Map<String, String> headers
 	}
 
 	public static AdtRequest put(String path, String body, String contentType) {
-		return new AdtRequest("PUT", path, new LinkedHashMap<>(), body, contentType);
+		return put(path, body, contentType, contentType);
+	}
+
+	public static AdtRequest put(String path, String body, String contentType, String accept) {
+		return new AdtRequest("PUT", path, accept(accept), body, contentType);
 	}
 
 	private static Map<String, String> accept(String accept) {
