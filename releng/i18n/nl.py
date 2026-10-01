@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella denkt na", "chat.cancelled": "Gestopt.",
  "chat.fallback": "{0} heeft dit verzoek geweigerd; {1} heeft in plaats daarvan geantwoord.",
  "chat.tool.ok": "klaar", "chat.tool.error": "mislukt", "chat.tool.denied": "niet toegestaan",
+ "chat.tool.ask": "wacht op bevestiging",
  "chat.notice.refusal": "Het model heeft dit verzoek geweigerd. {0}",
  "chat.notice.max_tokens": "Het antwoord is afgekapt bij de tokenlimiet (Voorkeuren → Bella → Max. uitvoertokens).",
  "chat.notice.max_tokens_tool": "Het antwoord is afgekapt tijdens het voorbereiden van een toolaanroep; de tool is niet uitgevoerd.",

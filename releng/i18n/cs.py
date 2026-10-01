@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella přemýšlí", "chat.cancelled": "Zastaveno.",
  "chat.fallback": "{0} tento požadavek odmítl; místo něj odpověděl {1}.",
  "chat.tool.ok": "hotovo", "chat.tool.error": "selhalo", "chat.tool.denied": "nepovoleno",
+ "chat.tool.ask": "čeká na potvrzení",
  "chat.notice.refusal": "Model tento požadavek odmítl. {0}",
  "chat.notice.max_tokens": "Odpověď byla useknuta na limitu tokenů (Předvolby → Bella → Max. výstupních tokenů).",
  "chat.notice.max_tokens_tool": "Odpověď byla useknuta při přípravě volání nástroje; nástroj nebyl spuštěn.",

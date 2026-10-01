@@ -67,6 +67,7 @@ MESSAGES = {
  "chat.tool.ok": "done",
  "chat.tool.error": "failed",
  "chat.tool.denied": "not allowed",
+ "chat.tool.ask": "needs confirmation",
  "chat.notice.refusal": "The model declined this request. {0}",
  "chat.notice.max_tokens": "The answer was cut off at the token limit (Preferences → Bella → Max. output tokens).",
  "chat.notice.max_tokens_tool": "The answer was cut off while preparing a tool call; the tool was not run.",

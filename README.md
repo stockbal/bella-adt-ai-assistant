@@ -82,6 +82,7 @@ Tables and structures are read as source on newer ABAP releases (7.52 and later)
 | Write, create, activate (`adt_write_source`, `adt_create_object`, `adt_activate`; ARC-1: SAPWrite, SAPActivate, …) | asks first |
 | Release transports | always refused |
 
+- "Asks first" asks in the chat itself: the tool card shows the arguments with *Allow* and *Deny*, and Bella waits there.
 - Add your own rules under *Preferences → Bella → SAP-Tools & ARC-1*, one per line as `pattern=AUTO|CONFIRM|DENY`.
 - With ARC-1, its server-side safety flags apply in addition.
 
@@ -147,7 +148,7 @@ What happens:
 - Bella starts `claude` headless (`-p`, `stream-json`) in its own working directory in the Eclipse workspace metadata. One CLI process runs per chat; *New chat* ends it.
 - The CLI's built-in tools are switched off (`--tools ""`), so Claude can neither read files nor run commands.
 - The CLI gets Bella's SAP tools through a **local MCP server** inside Bella. It listens on `127.0.0.1` only and requires a random token. Other MCP configurations of the user are ignored (`--strict-mcp-config`).
-- Every tool call passes the same rules as with an API key: tool policy, confirmation dialog and the router for open objects (code only goes into the editor).
+- Every tool call passes the same rules as with an API key: tool policy, confirmation in the chat and the router for open objects (code only goes into the editor).
 - Bella removes an `ANTHROPIC_API_KEY` from the CLI's environment so that the subscription is really used.
 
 Limits:
@@ -175,7 +176,7 @@ What happens:
 
 - Bella starts `copilot --acp` (Agent Client Protocol) in its own empty working directory in the Eclipse workspace metadata. One CLI process runs per chat; *New chat* ends it.
 - The CLI's own abilities are switched off: no shell commands (`--deny-tool shell`), no file changes (`--deny-tool write`), no web access (`--deny-tool url`), no GitHub MCP server and none of your own Copilot MCP servers.
-- The CLI gets Bella's SAP tools through the same **local MCP server** as the Claude subscription (loopback only, random token). Tool policy, confirmation dialog and the router for open objects apply as usual. Bella rejects every other action the CLI asks permission for and says so in the chat.
+- The CLI gets Bella's SAP tools through the same **local MCP server** as the Claude subscription (loopback only, random token). Tool policy, confirmation in the chat and the router for open objects apply as usual. Bella rejects every other action the CLI asks permission for and says so in the chat.
 
 Limits:
 

@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella가 생각하는 중", "chat.cancelled": "중지되었습니다.",
  "chat.fallback": "{0}이(가) 이 요청을 거부하여 {1}이(가) 대신 답변했습니다.",
  "chat.tool.ok": "완료", "chat.tool.error": "실패", "chat.tool.denied": "허용되지 않음",
+ "chat.tool.ask": "확인 대기 중",
  "chat.notice.refusal": "모델이 이 요청을 거부했습니다. {0}",
  "chat.notice.max_tokens": "답변이 토큰 한도에서 잘렸습니다(환경 설정 → Bella → 최대 출력 토큰).",
  "chat.notice.max_tokens_tool": "도구 호출을 준비하는 중에 답변이 잘려 도구가 실행되지 않았습니다.",

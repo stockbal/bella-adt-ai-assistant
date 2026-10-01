@@ -55,6 +55,15 @@ details.tool .state { margin-left: auto; font-size: 11px; color: var(--muted); }
 details.tool.ok .state { color: var(--ok); } details.tool.error .state { color: var(--err); }
 details.tool pre { margin: 0; padding: 6px 8px; border-top: 1px solid var(--border); background: var(--code-bg);
   max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 11px; }
+details.tool.ask { border-color: var(--accent); }
+details.tool.ask .state { color: var(--accent); }
+.ask { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px;
+  border-top: 1px solid var(--accent); background: var(--accent-soft); }
+.ask .q { flex: 1; min-width: 150px; }
+.ask button.icon { border-color: var(--border); background: var(--bg); padding: 3px 10px; }
+.ask button.allow { border-color: var(--accent); background: var(--accent); color: #fff; }
+.ask button.allow:hover { border-color: var(--accent); background: var(--accent); filter: brightness(1.12); }
+.ask button.deny:hover { border-color: var(--err); color: var(--err); background: var(--bg); }
 .status-icon svg { width: 14px; height: 14px; vertical-align: -2px; }
 .notice { margin: 8px 0 8px 30px; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--warn);
   background: var(--code-bg); font-size: 12px; }
@@ -147,6 +156,57 @@ function addTool(id, seg, name, input) {
   el.querySelector('.in').textContent = input;
   if (stick) scrollDown();
 }
+/** Turns a running tool card into a question with Allow/Deny; Bella waits for the answer. */
+function askTool(id, seg, req, question, allowText, denyText, label) {
+  var d = segment(id, seg).querySelector('details');
+  if (!d) return;
+  var stick = nearBottom();
+  if (!d.open) {
+    d.open = true;
+    d.setAttribute('data-autoopen', '1'); // only what the question opened gets closed again
+  }
+  d.className = 'tool ask';
+  d.querySelector('.state').textContent = label;
+  var box = document.createElement('div');
+  box.className = 'ask';
+  box.id = 'ask' + req;
+  var q = document.createElement('span');
+  q.className = 'q';
+  q.textContent = question;
+  box.appendChild(q);
+  box.appendChild(askButton(req, false, ICONS.denied, denyText));
+  box.appendChild(askButton(req, true, ICONS.ok, allowText));
+  d.appendChild(box);
+  if (stick) scrollDown();
+}
+function askButton(req, yes, icon, text) {
+  var b = document.createElement('button');
+  b.className = 'icon ' + (yes ? 'allow' : 'deny');
+  b.setAttribute('data-confirm', req + ':' + (yes ? '1' : '0'));
+  b.innerHTML = icon;
+  b.appendChild(document.createTextNode(text));
+  return b;
+}
+/**
+ * Takes the buttons away again, either after a click or when the turn was
+ * cancelled, and collapses the card the question had opened.
+ */
+function settleAsk(req) {
+  var box = document.getElementById('ask' + req);
+  if (!box) return;
+  var stick = nearBottom();
+  var d = box.parentNode;
+  box.remove();
+  if (d && d.className.indexOf('ask') >= 0) {
+    d.className = 'tool running';
+    d.querySelector('.state').innerHTML = '<span class="spinner"></span>';
+    if (d.getAttribute('data-autoopen')) {
+      d.removeAttribute('data-autoopen');
+      d.open = false;
+    }
+  }
+  if (stick) scrollDown();
+}
 function finishTool(id, seg, status, label, output) {
   var d = segment(id, seg).querySelector('details');
   if (!d) return;
@@ -182,6 +242,14 @@ function run(action, where) {
   bellaAction(action, parseInt(parts[0], 10), parseInt(parts[1], 10), where.idx);
 }
 document.addEventListener('click', function (e) {
+  var c = e.target.closest('button[data-confirm]');
+  if (c) {
+    var p = c.getAttribute('data-confirm').split(':');
+    settleAsk(p[0]);
+    bellaConfirm(parseInt(p[0], 10), p[1] === '1');
+    e.preventDefault();
+    return;
+  }
   var b = e.target.closest('button[data-action]');
   if (b && b.closest('.code-bar')) { run(b.getAttribute('data-action'), locate(b)); e.preventDefault(); return; }
   if (b && b.closest('#menu')) { run(b.getAttribute('data-action'), menuTarget); e.preventDefault(); return; }

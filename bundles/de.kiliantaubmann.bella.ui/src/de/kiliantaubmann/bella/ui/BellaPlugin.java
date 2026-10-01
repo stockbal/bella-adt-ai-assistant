@@ -329,7 +329,7 @@ public class BellaPlugin extends AbstractUIPlugin {
 					new ToolExecutor(tools(), this::policy, confirmer, writeGuard), VERSION);
 		}
 		return new ChatSession(this::provider, this::chatSettings, prompts().chatSystem(), tools(), this::policy,
-				confirmer::confirm, writeGuard);
+				confirmer, writeGuard);
 	}
 
 	public String chatModel() {

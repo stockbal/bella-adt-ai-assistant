@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella думает", "chat.cancelled": "Остановлено.",
  "chat.fallback": "{0} отклонила запрос; вместо неё ответила {1}.",
  "chat.tool.ok": "готово", "chat.tool.error": "ошибка", "chat.tool.denied": "не разрешено",
+ "chat.tool.ask": "ожидает подтверждения",
  "chat.notice.refusal": "Модель отклонила этот запрос. {0}",
  "chat.notice.max_tokens": "Ответ обрезан по лимиту токенов (Настройки → Bella → Макс. выходных токенов).",
  "chat.notice.max_tokens_tool": "Ответ обрезан при подготовке вызова инструмента; инструмент не запускался.",

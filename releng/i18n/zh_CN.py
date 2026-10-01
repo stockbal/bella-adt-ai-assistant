@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella 正在思考", "chat.cancelled": "已停止。",
  "chat.fallback": "{0} 拒绝了此请求；改由 {1} 回答。",
  "chat.tool.ok": "完成", "chat.tool.error": "失败", "chat.tool.denied": "不允许",
+ "chat.tool.ask": "等待确认",
  "chat.notice.refusal": "模型拒绝了此请求。{0}",
  "chat.notice.max_tokens": "回答在令牌上限处被截断（首选项 → Bella → 最大输出令牌数）。",
  "chat.notice.max_tokens_tool": "回答在准备工具调用时被截断；未执行该工具。",

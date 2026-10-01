@@ -64,6 +64,7 @@ MESSAGES = {
  "chat.tool.ok": "fertig",
  "chat.tool.error": "fehlgeschlagen",
  "chat.tool.denied": "nicht erlaubt",
+ "chat.tool.ask": "wartet auf Bestätigung",
  "chat.notice.refusal": "Das Modell hat die Anfrage abgelehnt. {0}",
  "chat.notice.max_tokens": "Die Antwort wurde am Token-Limit abgeschnitten (Einstellungen → Bella → Max. Ausgabe-Tokens).",
  "chat.notice.max_tokens_tool": "Die Antwort wurde während eines Tool-Aufrufs abgeschnitten; das Tool wurde nicht ausgeführt.",

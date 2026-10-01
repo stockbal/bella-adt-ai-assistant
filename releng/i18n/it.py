@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella sta pensando", "chat.cancelled": "Interrotto.",
  "chat.fallback": "{0} ha rifiutato questa richiesta; ha risposto {1}.",
  "chat.tool.ok": "fatto", "chat.tool.error": "fallito", "chat.tool.denied": "non consentito",
+ "chat.tool.ask": "in attesa di conferma",
  "chat.notice.refusal": "Il modello ha rifiutato questa richiesta. {0}",
  "chat.notice.max_tokens": "La risposta è stata troncata al limite di token (Preferenze → Bella → Token di output max.).",
  "chat.notice.max_tokens_tool": "La risposta è stata troncata durante la preparazione di una chiamata a strumento; lo strumento non è stato eseguito.",

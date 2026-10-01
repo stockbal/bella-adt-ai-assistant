@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella düşünüyor", "chat.cancelled": "Durduruldu.",
  "chat.fallback": "{0} bu isteği reddetti; yerine {1} yanıt verdi.",
  "chat.tool.ok": "tamam", "chat.tool.error": "başarısız", "chat.tool.denied": "izin verilmedi",
+ "chat.tool.ask": "onay bekliyor",
  "chat.notice.refusal": "Model bu isteği reddetti. {0}",
  "chat.notice.max_tokens": "Yanıt belirteç sınırında kesildi (Tercihler → Bella → Azami çıktı belirteci).",
  "chat.notice.max_tokens_tool": "Yanıt bir araç çağrısı hazırlanırken kesildi; araç çalıştırılmadı.",

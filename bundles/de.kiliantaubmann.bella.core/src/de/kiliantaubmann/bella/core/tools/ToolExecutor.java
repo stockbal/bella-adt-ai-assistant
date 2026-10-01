@@ -21,6 +21,14 @@ public final class ToolExecutor {
 	/** Asks the developer whether a tool call may run. Blocks until answered. */
 	public interface Confirmer {
 		boolean confirm(ToolSpec tool, JsonObject input);
+
+		/**
+		 * The same question, plus the id of the tool call the chat is already
+		 * showing, so the UI can ask inside that tool card instead of in a dialog.
+		 */
+		default boolean confirm(ToolSpec tool, JsonObject input, String callId) {
+			return confirm(tool, input);
+		}
 	}
 
 	/** Notified before and after a tool runs, e.g. to show it in the chat. */
@@ -73,7 +81,7 @@ public final class ToolExecutor {
 			result = ToolResult.error(Json.GSON.toJson(err));
 			Log.warn(AREA, tool.name() + ": invalid input JSON: " + call.inputError());
 		} else {
-			result = decideAndRun(tool, call.input(), cancel);
+			result = decideAndRun(tool, call, cancel);
 		}
 		ToolResult r = result;
 		String content = r.content() == null ? "" : r.content();
@@ -87,7 +95,8 @@ public final class ToolExecutor {
 		return result;
 	}
 
-	private ToolResult decideAndRun(ToolSpec tool, JsonObject input, CancelToken cancel) {
+	private ToolResult decideAndRun(ToolSpec tool, ToolCall call, CancelToken cancel) {
+		JsonObject input = call.input();
 		ToolPolicy.Decision decision = policy.get().decide(tool, input);
 		Log.info(AREA, tool.name() + " (" + tool.providerId() + "): policy " + decision);
 		if (decision == ToolPolicy.Decision.DENY) {
@@ -100,7 +109,7 @@ public final class ToolExecutor {
 			Log.info(AREA, tool.name() + ": redirected into the open editor");
 			return intercepted.get();
 		}
-		if (decision == ToolPolicy.Decision.CONFIRM && !confirmer.confirm(tool, input)) {
+		if (decision == ToolPolicy.Decision.CONFIRM && !confirmer.confirm(tool, input, call.id())) {
 			Log.info(AREA, tool.name() + ": declined by the developer");
 			return ToolResult.error("The developer declined this tool call.");
 		}

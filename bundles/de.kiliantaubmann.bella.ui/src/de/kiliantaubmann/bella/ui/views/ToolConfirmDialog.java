@@ -19,7 +19,11 @@ import de.kiliantaubmann.bella.core.util.Json;
 import de.kiliantaubmann.bella.ui.BellaPlugin;
 import de.kiliantaubmann.bella.ui.Messages;
 
-/** Asks the developer whether Bella may run a tool that changes something. */
+/**
+ * Asks the developer whether Bella may run a tool that changes something. The
+ * chat normally asks inside the tool card itself; this dialog is the fallback
+ * when there is no card to ask in (no browser engine in the view).
+ */
 final class ToolConfirmDialog extends TitleAreaDialog {
 
 	private final ToolSpec tool;

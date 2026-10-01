@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "A Bella está pensando", "chat.cancelled": "Interrompido.",
  "chat.fallback": "{0} recusou esta solicitação; {1} respondeu no lugar.",
  "chat.tool.ok": "concluído", "chat.tool.error": "falhou", "chat.tool.denied": "não permitido",
+ "chat.tool.ask": "aguardando confirmação",
  "chat.notice.refusal": "O modelo recusou esta solicitação. {0}",
  "chat.notice.max_tokens": "A resposta foi cortada no limite de tokens (Preferências → Bella → Máx. de tokens de saída).",
  "chat.notice.max_tokens_tool": "A resposta foi cortada ao preparar uma chamada de ferramenta; a ferramenta não foi executada.",

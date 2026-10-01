@@ -22,6 +22,7 @@ import de.kiliantaubmann.bella.core.llm.StreamListener;
 import de.kiliantaubmann.bella.core.llm.ToolCall;
 import de.kiliantaubmann.bella.core.llm.Usage;
 import de.kiliantaubmann.bella.core.tools.Capability;
+import de.kiliantaubmann.bella.core.tools.ToolExecutor;
 import de.kiliantaubmann.bella.core.tools.ToolPolicy;
 import de.kiliantaubmann.bella.core.tools.ToolProvider;
 import de.kiliantaubmann.bella.core.tools.ToolRegistry;
@@ -147,6 +148,37 @@ class ChatSessionTest {
 		assertTrue(tools.calls.isEmpty());
 		JsonObject result = s.history().get(2).getAsJsonArray("content").get(0).getAsJsonObject();
 		assertTrue(result.get("is_error").getAsBoolean());
+	}
+
+	/** The chat asks inside the tool card, so the confirmer needs to know which call it is. */
+	@Test
+	void confirmationKnowsTheToolCallId() throws Exception {
+		ScriptedLlm llm = new ScriptedLlm();
+		llm.results.add(toolUse(StopReason.TOOL_USE, call("t7", "adt_write_source")));
+		llm.results.add(text("ok"));
+		ToolRegistry registry = new ToolRegistry();
+		registry.addProvider(new Tools());
+		registry.refresh(e -> {
+		});
+		List<String> asked = new ArrayList<>();
+		ChatSession s = new ChatSession(() -> llm, () -> new ChatSession.Settings("m", 1000, null), "sys", registry,
+				ToolPolicy::defaults, new ToolExecutor.Confirmer() {
+
+					@Override
+					public boolean confirm(ToolSpec tool, JsonObject input) {
+						asked.add(tool.name() + " without an id");
+						return false;
+					}
+
+					@Override
+					public boolean confirm(ToolSpec tool, JsonObject input, String callId) {
+						asked.add(tool.name() + " " + callId);
+						return false;
+					}
+				}, null);
+		s.send("change it", new ChatSession.Listener() {
+		}, CancelToken.NONE);
+		assertEquals(List.of("adt_write_source t7"), asked);
 	}
 
 	@Test

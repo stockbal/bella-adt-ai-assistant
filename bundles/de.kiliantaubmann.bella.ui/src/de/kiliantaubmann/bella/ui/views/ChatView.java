@@ -8,7 +8,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -39,6 +43,7 @@ import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.dialogs.PreferencesUtil;
 import org.eclipse.ui.part.ViewPart;
+import org.eclipse.ui.progress.IWorkbenchSiteProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 import com.google.gson.JsonObject;
@@ -48,6 +53,7 @@ import de.kiliantaubmann.bella.core.agent.Conversation;
 import de.kiliantaubmann.bella.core.llm.ChatResult;
 import de.kiliantaubmann.bella.core.llm.ToolCall;
 import de.kiliantaubmann.bella.core.prompt.EditorContext;
+import de.kiliantaubmann.bella.core.tools.ToolExecutor;
 import de.kiliantaubmann.bella.core.tools.ToolResult;
 import de.kiliantaubmann.bella.core.tools.ToolSpec;
 import de.kiliantaubmann.bella.core.util.CancelToken;
@@ -77,9 +83,15 @@ public class ChatView extends ViewPart {
 	private int nextMessageId = 1;
 	/** "messageId_segment" → code blocks of that text segment. */
 	private final Map<String, List<String>> codeBlocks = new HashMap<>();
+	/** Tool call id → the chat card showing it, as {messageId, segment}. */
+	private final Map<String, int[]> toolCards = new ConcurrentHashMap<>();
+	/** Tool calls waiting for an inline allow/deny, by request id. */
+	private final Map<Integer, CompletableFuture<Boolean>> asks = new ConcurrentHashMap<>();
+	private final AtomicInteger nextAskId = new AtomicInteger(1);
 	/** Scripts issued before the page finished loading. */
 	private final List<String> pendingScripts = new ArrayList<>();
-	private boolean pageLoaded;
+	/** Read from the job thread when a tool call needs confirmation. */
+	private volatile boolean pageLoaded;
 
 	/** The chat view if it is open, without opening it. UI thread. */
 	public static Optional<ChatView> find() {
@@ -155,6 +167,13 @@ public class ChatView extends ViewPart {
 				return null;
 			}
 		};
+		new BrowserFunction(browser, "bellaConfirm") {
+			@Override
+			public Object function(Object[] args) {
+				answerTool(((Number) args[0]).intValue(), "true".equals(String.valueOf(args[1])));
+				return null;
+			}
+		};
 		new BrowserFunction(browser, "bellaOpen") {
 			@Override
 			public Object function(Object[] args) {
@@ -174,13 +193,18 @@ public class ChatView extends ViewPart {
 		GridLayoutFactory.swtDefaults().numColumns(3).margins(6, 6).applyTo(bottom);
 		input = new Text(bottom, SWT.MULTI | SWT.WRAP | SWT.BORDER | SWT.V_SCROLL);
 		input.setMessage(Messages.get("chat.inputHint"));
-		GridDataFactory.fillDefaults().grab(true, false).span(1, 2).hint(SWT.DEFAULT, 64).applyTo(input);
+		GridDataFactory.fillDefaults().grab(true, false).span(3, 1).hint(SWT.DEFAULT, 64).applyTo(input);
 		input.addListener(SWT.KeyDown, e -> {
 			if ((e.keyCode == SWT.CR || e.keyCode == SWT.KEYPAD_CR) && (e.stateMask & SWT.SHIFT) == 0) {
 				e.doit = false;
 				sendFromInput();
 			}
 		});
+		withContext = new Button(bottom, SWT.CHECK);
+		withContext.setText(Messages.get("chat.withContext"));
+		withContext.setToolTipText(Messages.get("chat.withContextTip"));
+		withContext.setSelection(true);
+		GridDataFactory.fillDefaults().grab(true, false).applyTo(withContext);
 		send = new Button(bottom, SWT.PUSH);
 		send.setImage(BellaPlugin.image("send"));
 		send.setToolTipText(Messages.get("chat.send"));
@@ -190,13 +214,8 @@ public class ChatView extends ViewPart {
 		stop.setToolTipText(Messages.get("chat.stop"));
 		stop.setEnabled(false);
 		stop.addListener(SWT.Selection, e -> cancel());
-		GridDataFactory.fillDefaults().span(2, 1).applyTo(new Label(bottom, SWT.NONE));
-		withContext = new Button(bottom, SWT.CHECK);
-		withContext.setText(Messages.get("chat.withContext"));
-		withContext.setToolTipText(Messages.get("chat.withContextTip"));
-		withContext.setSelection(true);
 		status = new Label(bottom, SWT.NONE);
-		GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(status);
+		GridDataFactory.fillDefaults().grab(true, false).span(3, 1).applyTo(status);
 
 		IToolBarManager tb = getViewSite().getActionBars().getToolBarManager();
 		Action newChat = new Action(Messages.get("chat.new"), BellaPlugin.descriptor("new_chat")) {
@@ -263,13 +282,14 @@ public class ChatView extends ViewPart {
 		if (session != null) {
 			session.close();
 		}
-		session = plugin.newConversation(this::confirmTool, new OpenEditorRouter());
+		session = plugin.newConversation(confirmer, new OpenEditorRouter());
 	}
 
 	private void newChat() {
 		cancel();
 		newSession();
 		codeBlocks.clear();
+		toolCards.clear();
 		js("showEmpty()");
 		updateStatus();
 	}
@@ -399,6 +419,7 @@ public class ChatView extends ViewPart {
 		if (c != null) {
 			c.cancel();
 		}
+		denyPendingTools();
 	}
 
 	@Override
@@ -412,10 +433,86 @@ public class ChatView extends ViewPart {
 
 	// ---- tool confirmation ---------------------------------------------------------------
 
-	private boolean confirmTool(ToolSpec tool, JsonObject input) {
+	/** Without a tool call id there is no card to ask in, so the dialog takes over. */
+	private final ToolExecutor.Confirmer confirmer = new ToolExecutor.Confirmer() {
+
+		@Override
+		public boolean confirm(ToolSpec tool, JsonObject input) {
+			return confirmInDialog(tool, input);
+		}
+
+		@Override
+		public boolean confirm(ToolSpec tool, JsonObject input, String callId) {
+			return confirmTool(tool, input, callId);
+		}
+	};
+
+	/**
+	 * Asks inside the tool card the chat is already showing: the card gets an
+	 * Allow/Deny row and this thread waits for the click. Without a card to ask
+	 * in (no browser engine, page not up yet) the dialog still does it.
+	 */
+	private boolean confirmTool(ToolSpec tool, JsonObject input, String callId) {
+		int[] card = callId == null ? null : toolCards.get(callId);
+		// On the UI thread we must not block: waiting there would freeze the click we wait for.
+		if (card == null || browser == null || browser.isDisposed() || !pageLoaded || Display.getCurrent() != null) {
+			return confirmInDialog(tool, input);
+		}
+		int req = nextAskId.getAndIncrement();
+		CompletableFuture<Boolean> answer = new CompletableFuture<>();
+		asks.put(req, answer);
+		String question = Messages.get(tool.kind() == ToolSpec.Kind.READ ? "confirm.messageRead" : "confirm.messageWrite");
+		Display.getDefault().asyncExec(() -> {
+			if (asks.containsKey(req)) {
+				js("askTool(" + card[0] + "," + card[1] + "," + req + "," + str(question) + ","
+						+ str(Messages.get("confirm.allow")) + "," + str(Messages.get("confirm.deny")) + ","
+						+ str(Messages.get("chat.tool.ask")) + ")");
+				flagAttention();
+			}
+		});
+		try {
+			return answer.get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return false;
+		} catch (ExecutionException e) {
+			return false;
+		} finally {
+			asks.remove(req);
+		}
+	}
+
+	private boolean confirmInDialog(ToolSpec tool, JsonObject input) {
 		AtomicBoolean ok = new AtomicBoolean();
 		Display.getDefault().syncExec(() -> ok.set(ToolConfirmDialog.ask(getSite().getShell(), tool, input)));
 		return ok.get();
+	}
+
+	/** Answer from the Allow/Deny buttons in the chat. UI thread. */
+	private void answerTool(int req, boolean allowed) {
+		CompletableFuture<Boolean> answer = asks.remove(req);
+		if (answer != null) {
+			answer.complete(allowed);
+		}
+	}
+
+	/** Nobody can answer any more (stop pressed, new chat, view closed): deny. */
+	private void denyPendingTools() {
+		for (Integer req : List.copyOf(asks.keySet())) {
+			CompletableFuture<Boolean> answer = asks.remove(req);
+			if (answer != null) {
+				answer.complete(false);
+				js("settleAsk(" + req + ")");
+			}
+		}
+	}
+
+	/** Marks the view tab when the question arrives while the developer is elsewhere. */
+	private void flagAttention() {
+		IWorkbenchSiteProgressService progress = getSite().getService(IWorkbenchSiteProgressService.class);
+		if (progress != null) {
+			progress.warnOfContentChange();
+		}
 	}
 
 	// ---- code block actions ----------------------------------------------------------------
@@ -496,15 +593,23 @@ public class ChatView extends ViewPart {
 				segmentOf("tool:" + call.id());
 				seg = segment;
 			}
-			String in = abbreviate(Json.PRETTY.toJson(call.input()), 4000);
+			if (call.id() != null) {
+				toolCards.put(call.id(), new int[] { id, seg });
+			}
+			String in = abbreviate(ToolConfirmDialog.describe(call.input()), 4000);
 			ui(() -> js("addTool(" + id + "," + seg + "," + str(tool.name()) + "," + str(in) + ")"));
 		}
 
 		@Override
 		public void onToolResult(ToolSpec tool, ToolCall call, ToolResult result) {
+			int[] card = call.id() == null ? null : toolCards.get(call.id());
 			int seg;
-			synchronized (this) {
-				seg = segment;
+			if (card != null) {
+				seg = card[1];
+			} else {
+				synchronized (this) {
+					seg = segment;
+				}
 			}
 			String out = abbreviate(result.content() == null ? "" : result.content(), 6000);
 			boolean denied = result.isError() && result.content() != null

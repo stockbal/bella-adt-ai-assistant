@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella が考えています", "chat.cancelled": "停止しました。",
  "chat.fallback": "{0} がこのリクエストを拒否したため、{1} が代わりに回答しました。",
  "chat.tool.ok": "完了", "chat.tool.error": "失敗", "chat.tool.denied": "許可されていません",
+ "chat.tool.ask": "確認待ち",
  "chat.notice.refusal": "モデルがこのリクエストを拒否しました。{0}",
  "chat.notice.max_tokens": "回答がトークン上限で途切れました（設定 → Bella → 最大出力トークン数）。",
  "chat.notice.max_tokens_tool": "ツール呼び出しの準備中に回答が途切れたため、ツールは実行されませんでした。",

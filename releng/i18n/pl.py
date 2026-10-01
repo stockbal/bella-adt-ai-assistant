@@ -35,6 +35,7 @@ MESSAGES = {
  "chat.jobName": "Bella myśli", "chat.cancelled": "Zatrzymano.",
  "chat.fallback": "{0} odrzucił to żądanie; zamiast niego odpowiedział {1}.",
  "chat.tool.ok": "gotowe", "chat.tool.error": "błąd", "chat.tool.denied": "niedozwolone",
+ "chat.tool.ask": "czeka na potwierdzenie",
  "chat.notice.refusal": "Model odrzucił to żądanie. {0}",
  "chat.notice.max_tokens": "Odpowiedź została ucięta na limicie tokenów (Preferencje → Bella → Maks. tokenów wyjściowych).",
  "chat.notice.max_tokens_tool": "Odpowiedź została ucięta podczas przygotowania wywołania narzędzia; narzędzie nie zostało uruchomione.",
